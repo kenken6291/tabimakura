@@ -3,7 +3,7 @@
   'use strict';
 
   const CFG = window.APP_CONFIG || {};
-  const KEY = { session: 'tabimakura_session', settings: 'tabimakura_settings', departed: 'tabimakura_departed' };
+  const KEY = { session: 'tabimakura_session', settings: 'tabimakura_settings', departed: 'tabimakura_departed', helpHidden: 'tabimakura_help_hidden' };
 
   const state = {
     token: null, user: null,
@@ -146,7 +146,13 @@
       try { sessionStorage.setItem(KEY.departed, '1'); } catch (e) { /* 無視 */ }
       if ('speechSynthesis' in window) { try { speechSynthesis.cancel(); } catch (e) { /* 無視 */ } }
       splash.classList.add('leave');
-      setTimeout(() => { splash.remove(); state.map && state.map.invalidateSize(); }, 950);
+      setTimeout(() => {
+        splash.remove();
+        state.map && state.map.invalidateSize();
+        let hidden = false;
+        try { hidden = !!localStorage.getItem(KEY.helpHidden); } catch (e) { /* 無視 */ }
+        if (!hidden) openHelp();
+      }, 950);
     });
   }
 
@@ -1019,6 +1025,23 @@
     }
   }
 
+  /* ============ 使い方 ============ */
+  function openHelp() {
+    hideUserMenu();
+    let hidden = false;
+    try { hidden = !!localStorage.getItem(KEY.helpHidden); } catch (e) { /* 無視 */ }
+    $('#helpHide').checked = hidden;
+    openModal('helpModal');
+    $('#helpModal .help-sheet').scrollTop = 0;
+  }
+
+  function saveHelpPref() {
+    try {
+      if ($('#helpHide').checked) localStorage.setItem(KEY.helpHidden, '1');
+      else localStorage.removeItem(KEY.helpHidden);
+    } catch (e) { /* 保存不可 */ }
+  }
+
   /* ============ モーダル管理 ============ */
   function openModal(id) {
     const m = $('#' + id);
@@ -1039,9 +1062,11 @@
       $$('.spot-item.active').forEach(li => li.classList.remove('active'));
     }
     if (id === 'videoModal') $('#videoBody').innerHTML = '';
+    if (id === 'helpModal') saveHelpPref();
+    if ($$('.modal').every(x => x.hidden)) document.body.style.overflow = '';
   }
 
-  function closeAllModals() { ['videoModal', 'settingsModal', 'mypageModal', 'spotModal', 'authModal'].forEach(closeModal); }
+  function closeAllModals() { ['videoModal', 'helpModal', 'settingsModal', 'mypageModal', 'spotModal', 'authModal'].forEach(closeModal); }
 
   function switchView(view) {
     document.body.classList.toggle('view-list', view === 'list');
@@ -1058,6 +1083,14 @@
     $('#btnTourStop').addEventListener('click', stopTour);
     $('#btnMypage').addEventListener('click', openMypage);
     $('#btnSettings').addEventListener('click', openSettings);
+    $('#btnHelp').addEventListener('click', openHelp);
+    $('#helpModal .help-toc').addEventListener('click', (e) => {
+      const a = e.target.closest('a[href^="#"]');
+      if (!a) return;
+      e.preventDefault();
+      const target = $(a.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
     $('#btnUser').addEventListener('click', (e) => {
       e.stopPropagation();
       if (state.user && state.token) $('#userMenu').hidden = !$('#userMenu').hidden;
@@ -1106,7 +1139,7 @@
     }));
     document.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
-      const open = ['videoModal', 'settingsModal', 'authModal', 'mypageModal', 'spotModal'].find(id => !$('#' + id).hidden);
+      const open = ['videoModal', 'helpModal', 'settingsModal', 'authModal', 'mypageModal', 'spotModal'].find(id => !$('#' + id).hidden);
       if (open) closeModal(open);
       else stopTour();
     });

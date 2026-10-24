@@ -42,6 +42,9 @@
       <button id="btnUser" class="hbtn hbtn-user">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg><span id="userLabel">ログイン</span>
       </button>
+      <button id="btnHelp" class="hbtn" title="使い方">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg><span>使い方</span>
+      </button>
       <button id="btnSettings" class="hbtn hbtn-icon" title="設定" aria-label="設定">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
       </button>
@@ -216,6 +219,118 @@
       </div>
       <p class="settings-version">バージョン <span id="settingsVersion"></span></p>
     </form>
+  </div>
+
+  <!-- ===== 使い方 ===== -->
+  <div id="helpModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <article class="modal-sheet help-sheet" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <button class="modal-close" data-close aria-label="閉じる">×</button>
+      <h2 id="helpTitle">旅枕の使い方</h2>
+      <p class="help-lead">地図の上で旅路をたどり、気になる場所を開いて句や解説を聞き、実際に訪れたら記録を残す。旅枕はそんな旅の案内帖です。</p>
+
+      <nav class="help-toc" aria-label="目次">
+        <a href="#help-map">地図と旅路</a>
+        <a href="#help-spot">スポットの楽しみ方</a>
+        <a href="#help-account">会員登録とログイン</a>
+        <a href="#help-log">旅の記録と御朱印帳</a>
+        <a href="#help-comment">旅人の声</a>
+        <a href="#help-settings">設定</a>
+        <a href="#help-faq">困ったときは</a>
+      </nav>
+
+      <section class="help-sec" id="help-map">
+        <h3>地図と旅路</h3>
+        <ol class="help-steps">
+          <li>左上の<b>テーマ</b>（例：奥の細道）を選ぶと、ゆかりの地が番号付きのピンで表示され、旅の順に点線で結ばれます。</li>
+          <li>ピンか右側の一覧の場所を押すと、その場所の詳しいページが開きます。スマホでは画面下の<b>「地図／一覧」</b>で切り替えます。</li>
+          <li>ヘッダーの<b>「空から辿る」</b>を押すと、出発地から結びの地まで、空を飛ぶように順番に巡ります。途中で止めるときは「止める」を押します。</li>
+          <li>地図の左上のボタンで、<b>淡色地図・航空写真・OpenStreetMap</b>を切り替えられます。</li>
+        </ol>
+        <p class="help-note">訪れた場所のピンは朱色に変わります（ログイン時）。</p>
+      </section>
+
+      <section class="help-sec" id="help-spot">
+        <h3>スポットの楽しみ方</h3>
+        <dl class="help-list">
+          <dt>句を朗読で聞く</dt>
+          <dd>この地で詠まれた句を、間をとった朗読で聞けます。もう一度押すと止まります。</dd>
+          <dt>解説を聞く</dt>
+          <dd>場所の説明を語り部の声で読み上げます。</dd>
+          <dt>空撮映像を見る／空から近づく</dt>
+          <dd>上空からの映像を再生します。映像がまだない場所では、航空写真に切り替わって上空から舞い降ります。</dd>
+          <dt>ここへの道順</dt>
+          <dd>Google マップが開き、今いる場所からの道順を調べられます。</dd>
+          <dt>案内人に尋ねる</dt>
+          <dd>「面白い裏話を教えて」などのボタンを押すか、自由に質問を書いて「尋ねる」を押すと、案内人が答えます。答えは「読み上げる」で聞けます。AIによる案内なので、史実は資料でも確かめてください（ログインが必要、1日の回数に上限があります）。</dd>
+        </dl>
+      </section>
+
+      <section class="help-sec" id="help-account">
+        <h3>会員登録とログイン</h3>
+        <ol class="help-steps">
+          <li>右上の<b>「ログイン」→「はじめての方は会員登録」</b>で、ユーザー名とメールアドレスを入力します。</li>
+          <li>届いたメールに書かれた<b>仮パスワード</b>でログインします。メールが見当たらないときは迷惑メールフォルダも確認してください。</li>
+          <li>続けて<b>本パスワードの設定画面</b>が開くので、英字と数字を含む8文字以上のパスワードを決めます。これで登録完了です。</li>
+        </ol>
+        <ul class="help-bullets">
+          <li>パスワード欄の目のマークを押すと、入力した文字を確認できます。</li>
+          <li>「ログイン状態を保持する」にチェックすると、次回から自動でログインします（共用のパソコンではチェックを外してください）。</li>
+          <li>パスワードを忘れたときは、ログイン画面の<b>「パスワードを忘れた」</b>から仮パスワードを再発行できます。</li>
+          <li>5回続けてパスワードを間違えると、15分間ログインできなくなります。</li>
+          <li>パスワードの変更とログアウトは、右上のユーザー名を押して出るメニューから行います。</li>
+        </ul>
+      </section>
+
+      <section class="help-sec" id="help-log">
+        <h3>旅の記録と御朱印帳</h3>
+        <ol class="help-steps">
+          <li>実際に訪れたら、その場所のページの<b>「旅の記録」</b>で訪れた日とひとことを書き、必要なら写真や動画を選びます（スマホならその場で撮影もできます）。</li>
+          <li><b>「参詣を記録する」</b>を押すと、ページに朱印が押され、ピンと一覧が朱色に変わります。同じ場所に何度でも記録を追加できます。</li>
+          <li>ヘッダーの<b>「御朱印帳」</b>で、集めた朱印と巡った数、これまでの記録を一覧できます。朱印を押すとその場所のページが開きます。</li>
+        </ol>
+        <ul class="help-bullets">
+          <li>写真・動画は、その場所の<b>「みんなの思い出アルバム」</b>に公開されます。人の顔や個人情報の写り込みにご注意ください。</li>
+          <li>写真は自動で縮小して送ります。動画は20MBまでです。</li>
+          <li>記録の削除は、記録の下の「この記録を削除」から行えます（写真・動画も消えます）。</li>
+        </ul>
+      </section>
+
+      <section class="help-sec" id="help-comment">
+        <h3>旅人の声</h3>
+        <p>各ページの下で、感想や旅のヒントを書き込めます。他の人の声には「♥」で共感を伝えられます。自分の書き込みは「編集」「削除」で直せます。新しい声は15秒ごとに自動で表示されます。</p>
+      </section>
+
+      <section class="help-sec" id="help-settings">
+        <h3>設定</h3>
+        <ul class="help-bullets">
+          <li><b>音声案内</b>：「Gemini の声」は自然な朗読（ログインが必要）、「ブラウザの声」はログインなしで使えます。</li>
+          <li><b>読み上げの速さ</b>：ゆっくり聞きたいときは左へ動かします。</li>
+          <li><b>GAS ウェブアプリURL</b>：通常は変更不要です。</li>
+        </ul>
+      </section>
+
+      <section class="help-sec" id="help-faq">
+        <h3>困ったときは</h3>
+        <dl class="help-list">
+          <dt>音が出ない</dt>
+          <dd>スマホのマナーモードと音量を確認してください。Gemini の声が使えないときは、自動でブラウザの声に切り替わります。</dd>
+          <dt>仮パスワードのメールが届かない</dt>
+          <dd>迷惑メールフォルダを確認し、それでもなければ「パスワードを忘れた」から再発行してください（1分に1回まで）。</dd>
+          <dt>「ログインが必要です」と表示された</dt>
+          <dd>ログインの有効期限（30日）が切れています。もう一度ログインしてください。</dd>
+          <dt>案内人が答えなくなった</dt>
+          <dd>1日の質問回数の上限に達しています。翌日にまたどうぞ。</dd>
+          <dt>地図や一覧が表示されない</dt>
+          <dd>通信状況を確認してページを再読み込みしてください。直らないときは「設定」の「接続テスト」で状態を確かめられます。</dd>
+        </dl>
+      </section>
+
+      <div class="btn-row help-foot">
+        <label class="check"><input type="checkbox" id="helpHide"> 次回から自動で表示しない</label>
+        <button class="btn btn-ink" data-close>旅を始める</button>
+      </div>
+    </article>
   </div>
 
   <!-- ===== 空撮映像 ===== -->

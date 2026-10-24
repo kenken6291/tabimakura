@@ -351,6 +351,30 @@ button { cursor: pointer; }
 .toast { background: var(--gofun); color: var(--sumi); padding: .65rem 1rem; border-radius: 4px; border-left: 4px solid var(--yamabuki); box-shadow: 0 6px 18px rgba(0,0,0,.35); font-size: .92rem; animation: sheet-in .2s ease; }
 .toast.error { border-left-color: var(--shu); }
 
+
+/* ===== 使い方 ===== */
+.help-sheet { width: min(100%, 720px); line-height: 1.85; }
+.help-lead { margin: -.4rem 0 1rem; font-family: var(--mincho); }
+.help-toc { display: flex; flex-wrap: wrap; gap: .4rem; padding-bottom: 1rem; border-bottom: 1px solid var(--kami-line); }
+.help-toc a { color: var(--sumi); text-decoration: none; border: 1px solid var(--kami-line); background: #fffdf8; border-radius: 999px; padding: .2em .8em; font-size: .85rem; }
+.help-toc a:hover { border-color: var(--ai); }
+.help-sec { padding: 1.1rem 0; border-bottom: 1px solid var(--kami-line); scroll-margin-top: .5rem; }
+.help-sec h3 { font-family: var(--mincho); font-size: 1.15rem; margin: 0 0 .6rem; padding-left: .6rem; border-left: 3px solid var(--shu); letter-spacing: .06em; }
+.help-sec p { margin: 0 0 .5rem; }
+.help-steps { margin: 0 0 .5rem; padding-left: 1.4em; }
+.help-steps li { margin-bottom: .45rem; padding-left: .2em; }
+.help-steps li::marker { font-family: var(--mincho); font-weight: 700; color: var(--shu); }
+.help-bullets { margin: .3rem 0 0; padding-left: 1.2em; }
+.help-bullets li { margin-bottom: .35rem; }
+.help-list { margin: 0; }
+.help-list dt { font-weight: 700; margin-top: .6rem; }
+.help-list dt:first-child { margin-top: 0; }
+.help-list dd { margin: .1rem 0 0; color: var(--sumi-2); }
+.help-note { font-size: .88rem; color: var(--sumi-2); }
+.help-sheet b { color: var(--sumi); }
+.help-foot { justify-content: space-between; align-items: center; padding-top: 1rem; }
+.help-foot .check { margin: 0; }
+
 /* ===== スマホ ===== */
 .mobile-tabs { display: none; }
 @media (max-width: 860px) {
