@@ -1,6 +1,6 @@
 /**
  * 旅枕（たびまくら）— テーマで巡る物語の旅  GASバックエンド
- * Version: v1.0.0
+ * Version: v1.1.2
  *
  * スクリプトプロパティ（プロジェクトの設定 → スクリプト プロパティ）
  *   SPREADSHEET_ID   : DBのスプレッドシートID（コンテナバインドなら空でOK）
@@ -17,7 +17,7 @@
  * ※ コードを変更したら「デプロイを管理 → 編集 → バージョン：新バージョン」で再デプロイすること。
  */
 
-const APP_VERSION = 'v1.0.0';
+const APP_VERSION = 'v1.1.2';
 const APP_NAME = '旅枕';
 const SESSION_DAYS = 30;
 const MAX_FAILED = 5;
@@ -511,14 +511,17 @@ function tts_(p) {
   const user = requireUser_(p);
   const text = str_(p.text, 1500);
   if (!text) fail_('INVALID', '読み上げる文章がありません');
-  const style = p.style === 'haiku'
-    ? '俳句を朗読します。五・七・五の切れ目でたっぷり間をとり、静かに、情景が浮かぶように詠んでください：'
-    : '旅の語り部として、落ち着いたやわらかな声で、ゆっくり語りかけるように読み上げてください：';
+  // 指示文を付けると、その文まで読み上げられることがあるため本文だけを送る。
+  // 俳句は句の切れ目（全角スペース）を読点に置き換えて間をとる。
+  const style = p.style === 'haiku' ? 'haiku' : 'guide';
+  const speech = style === 'haiku'
+    ? text.replace(/[\s　]+/g, '、').replace(/、+/g, '、').replace(/^、|、$/g, '') + '。'
+    : text;
   const voice = str_(p.voice, 40) || prop_('TTS_VOICE', 'Charon');
   const model = prop_('GEMINI_TTS_MODEL', 'gemini-2.5-flash-preview-tts');
 
   // 同じ文章・声はDriveにキャッシュして再利用（API節約）
-  const keyBytes = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, model + '|' + voice + '|' + style + '|' + text, Utilities.Charset.UTF_8);
+  const keyBytes = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, 'v2|' + model + '|' + voice + '|' + style + '|' + speech, Utilities.Charset.UTF_8);
   const cacheName = keyBytes.map(b => ('0' + (b & 255).toString(16)).slice(-2)).join('') + '.json';
   const folder = ttsFolder_();
   const hit = folder.getFilesByName(cacheName);
@@ -529,7 +532,7 @@ function tts_(p) {
 
   checkAiQuota_(user);
   const body = geminiFetch_(model, {
-    contents: [{ parts: [{ text: style + '\n' + text }] }],
+    contents: [{ parts: [{ text: speech }] }],
     generationConfig: {
       responseModalities: ['AUDIO'],
       speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } }
