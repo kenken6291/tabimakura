@@ -6,7 +6,7 @@
 window.APP_CONFIG = {
   APP_NAME: '旅枕',
   APP_SUBTITLE: 'テーマで巡る、物語の旅',
-  VERSION: 'v1.1.0',
+  VERSION: 'v1.1.1',
 
   // GASウェブアプリURL（https://script.google.com/macros/s/xxxx/exec）
   GAS_API_URL: 'https://script.google.com/macros/s/AKfycbxp_8--PHgph4rMn1BfJrq0gX18S7G_mPqYXgNoOd8t2Ns1qhO7k1vs2u163qUrm-Ss/exec',
