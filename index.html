@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>旅枕 — テーマで巡る、物語の旅</title>
+  <meta name="description" content="奥の細道をはじめ、テーマごとの旅路を地図・朗読・AI案内でたどる旅のガイド。">
+  <meta name="theme-color" content="#1b2740">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@500;700;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ===== 旅立ち（オープニング） ===== -->
+  <section id="splash" class="splash" aria-label="オープニング">
+    <div class="splash-inner">
+      <p class="splash-line" aria-hidden="true">月日は百代の過客にして<br>行かふ年も又旅人也</p>
+      <div class="splash-title">
+        <h1>旅枕</h1>
+        <p>テーマで巡る、物語の旅</p>
+        <button id="btnDepart" class="btn btn-gold btn-lg">旅立つ</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ヘッダー ===== -->
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-name">旅枕</span>
+      <select id="themeSelect" class="theme-select" aria-label="旅のテーマを選ぶ"></select>
+    </div>
+    <nav class="header-actions">
+      <button id="btnTour" class="hbtn" title="地図の上を空から順にたどります">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 16l20-8-8 14-2-6z"/></svg><span>空から辿る</span>
+      </button>
+      <button id="btnMypage" class="hbtn" title="訪れたスポットの御朱印帳">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/></svg><span>御朱印帳</span>
+      </button>
+      <button id="btnUser" class="hbtn hbtn-user">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6"/></svg><span id="userLabel">ログイン</span>
+      </button>
+      <button id="btnSettings" class="hbtn hbtn-icon" title="設定" aria-label="設定">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
+      </button>
+    </nav>
+  </header>
+
+  <!-- ===== メイン ===== -->
+  <main class="app-main">
+    <div class="map-wrap">
+      <div id="map" aria-label="旅路の地図"></div>
+      <div id="tourCaption" class="tour-caption" hidden>
+        <div class="tour-text">
+          <span id="tourNo" class="tour-no"></span>
+          <strong id="tourName"></strong>
+          <span id="tourHaiku" class="tour-haiku"></span>
+        </div>
+        <button id="btnTourStop" class="btn btn-ghost btn-sm">止める</button>
+      </div>
+    </div>
+
+    <aside class="panel" id="panel">
+      <div class="theme-intro">
+        <h2 id="themeName">読み込み中…</h2>
+        <p id="themeSubtitle" class="theme-sub"></p>
+        <p id="themeDesc" class="theme-desc"></p>
+        <div class="progress" id="progressBox" hidden>
+          <div class="progress-bar"><span id="progressFill"></span></div>
+          <p id="progressText"></p>
+        </div>
+      </div>
+      <ol id="spotList" class="spot-list" aria-label="スポット一覧"></ol>
+    </aside>
+
+    <div class="mobile-tabs" role="tablist">
+      <button class="mtab active" data-view="map" role="tab">地図</button>
+      <button class="mtab" data-view="list" role="tab">一覧</button>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <span>旅枕</span>
+    <span id="versionLabel" class="version"></span>
+  </footer>
+
+  <!-- ===== スポット詳細 ===== -->
+  <div id="spotModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <article class="modal-sheet spot-sheet" role="dialog" aria-modal="true" aria-labelledby="spotTitle">
+      <button class="modal-close" data-close aria-label="閉じる">×</button>
+      <div id="spotBody"></div>
+    </article>
+  </div>
+
+  <!-- ===== 認証 ===== -->
+  <div id="authModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-sheet auth-sheet" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <button class="modal-close" data-close aria-label="閉じる" id="authClose">×</button>
+
+      <!-- ログイン -->
+      <form class="auth-view" data-view="login" novalidate>
+        <h2 id="authTitle">ログイン</h2>
+        <label class="field">メールアドレス
+          <input type="email" name="email" autocomplete="email" required>
+        </label>
+        <label class="field">パスワード
+          <span class="pw-wrap">
+            <input type="password" name="password" autocomplete="current-password" required>
+            <button type="button" class="pw-toggle" aria-label="パスワードを表示"></button>
+          </span>
+        </label>
+        <label class="check"><input type="checkbox" name="remember" checked> ログイン状態を保持する</label>
+        <p class="form-msg" role="alert"></p>
+        <button type="submit" class="btn btn-gold btn-block">ログイン</button>
+        <div class="auth-links">
+          <button type="button" class="link" data-goto="register">はじめての方は会員登録</button>
+          <button type="button" class="link" data-goto="forgot">パスワードを忘れた</button>
+        </div>
+      </form>
+
+      <!-- 新規登録 -->
+      <form class="auth-view" data-view="register" novalidate hidden>
+        <h2>会員登録</h2>
+        <p class="note">登録したメールアドレスに仮パスワードを送ります。</p>
+        <label class="field">ユーザー名（20文字まで）
+          <input type="text" name="userName" maxlength="20" autocomplete="nickname" required>
+        </label>
+        <label class="field">メールアドレス
+          <input type="email" name="email" autocomplete="email" required>
+        </label>
+        <p class="form-msg" role="alert"></p>
+        <button type="submit" class="btn btn-gold btn-block">仮パスワードを受け取る</button>
+        <div class="auth-links">
+          <button type="button" class="link" data-goto="login">ログインに戻る</button>
+        </div>
+      </form>
+
+      <!-- パスワード再発行 -->
+      <form class="auth-view" data-view="forgot" novalidate hidden>
+        <h2>パスワード再発行</h2>
+        <p class="note">登録メールアドレスに新しい仮パスワードを送ります。現在のパスワードは使えなくなります。</p>
+        <label class="field">メールアドレス
+          <input type="email" name="email" autocomplete="email" required>
+        </label>
+        <p class="form-msg" role="alert"></p>
+        <button type="submit" class="btn btn-gold btn-block">仮パスワードを再発行</button>
+        <div class="auth-links">
+          <button type="button" class="link" data-goto="login">ログインに戻る</button>
+        </div>
+      </form>
+
+      <!-- パスワード変更 -->
+      <form class="auth-view" data-view="change" novalidate hidden>
+        <h2>本パスワードの設定</h2>
+        <p class="note" id="changeNote">仮パスワードでログインしました。旅を始める前に、ご自身のパスワードを設定してください。</p>
+        <label class="field">現在のパスワード（仮パスワード）
+          <span class="pw-wrap">
+            <input type="password" name="currentPassword" autocomplete="current-password" required>
+            <button type="button" class="pw-toggle" aria-label="パスワードを表示"></button>
+          </span>
+        </label>
+        <label class="field">新しいパスワード（英字と数字を含む8文字以上）
+          <span class="pw-wrap">
+            <input type="password" name="newPassword" autocomplete="new-password" required>
+            <button type="button" class="pw-toggle" aria-label="パスワードを表示"></button>
+          </span>
+        </label>
+        <label class="field">新しいパスワード（確認）
+          <span class="pw-wrap">
+            <input type="password" name="newPassword2" autocomplete="new-password" required>
+            <button type="button" class="pw-toggle" aria-label="パスワードを表示"></button>
+          </span>
+        </label>
+        <p class="form-msg" role="alert"></p>
+        <button type="submit" class="btn btn-gold btn-block">パスワードを設定</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== 御朱印帳（マイページ） ===== -->
+  <div id="mypageModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-sheet mypage-sheet" role="dialog" aria-modal="true" aria-labelledby="mypageTitle">
+      <button class="modal-close" data-close aria-label="閉じる">×</button>
+      <h2 id="mypageTitle">御朱印帳</h2>
+      <div id="mypageBody"></div>
+    </div>
+  </div>
+
+  <!-- ===== 設定 ===== -->
+  <div id="settingsModal" class="modal" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <form class="modal-sheet settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" id="settingsForm">
+      <button type="button" class="modal-close" data-close aria-label="閉じる">×</button>
+      <h2 id="settingsTitle">設定</h2>
+      <label class="field">GAS ウェブアプリURL
+        <input type="url" name="gasUrl" placeholder="https://script.google.com/macros/s/…/exec">
+        <small>空欄なら config.js の値を使います</small>
+      </label>
+      <fieldset class="field">
+        <legend>音声案内</legend>
+        <label class="radio"><input type="radio" name="ttsEngine" value="gemini"> Gemini の声（要ログイン・自然な朗読）</label>
+        <label class="radio"><input type="radio" name="ttsEngine" value="browser"> ブラウザの声（ログイン不要）</label>
+      </fieldset>
+      <label class="field">読み上げの速さ <output id="rateOut"></output>
+        <input type="range" name="speechRate" min="0.6" max="1.4" step="0.05">
+      </label>
+      <p class="form-msg" role="status"></p>
+      <div class="btn-row">
+        <button type="button" id="btnPing" class="btn btn-ghost">接続テスト</button>
+        <button type="submit" class="btn btn-gold">保存する</button>
+      </div>
+      <p class="settings-version">バージョン <span id="settingsVersion"></span></p>
+    </form>
+  </div>
+
+  <!-- ===== 空撮映像 ===== -->
+  <div id="videoModal" class="modal modal-video" hidden>
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-sheet video-sheet" role="dialog" aria-modal="true" aria-label="空撮映像">
+      <button class="modal-close" data-close aria-label="閉じる">×</button>
+      <div id="videoBody" class="video-body"></div>
+    </div>
+  </div>
+
+  <!-- ===== ユーザーメニュー ===== -->
+  <div id="userMenu" class="user-menu" hidden>
+    <p id="userMenuName"></p>
+    <button data-act="mypage">御朱印帳</button>
+    <button data-act="change">パスワード変更</button>
+    <button data-act="logout">ログアウト</button>
+  </div>
+
+  <div id="toast" class="toast-area" aria-live="polite"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
