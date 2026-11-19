@@ -209,6 +209,10 @@
         <label class="radio"><input type="radio" name="ttsEngine" value="gemini"> Gemini の声（要ログイン・自然な朗読）</label>
         <label class="radio"><input type="radio" name="ttsEngine" value="browser"> ブラウザの声（ログイン不要）</label>
       </fieldset>
+      <label class="field">AIモデル（案内人の頭脳）
+        <select name="geminiModel" id="modelSelect"></select>
+        <small>選んだモデルが使えない時は、汎用の最新モデルに自動で切り替わります</small>
+      </label>
       <label class="field">読み上げの速さ <output id="rateOut"></output>
         <input type="range" name="speechRate" min="0.6" max="1.4" step="0.05">
       </label>
@@ -217,7 +221,7 @@
         <button type="button" id="btnPing" class="btn btn-ghost">接続テスト</button>
         <button type="submit" class="btn btn-gold">保存する</button>
       </div>
-      <p class="settings-version">バージョン <span id="settingsVersion"></span></p>
+      <p class="settings-version">バージョン <span id="settingsVersion"></span><br>AIモデル <span id="settingsModel">-</span></p>
     </form>
   </div>
 
@@ -305,6 +309,7 @@
         <h3>設定</h3>
         <ul class="help-bullets">
           <li><b>音声案内</b>：「Gemini の声」は自然な朗読（ログインが必要）、「ブラウザの声」はログインなしで使えます。</li>
+          <li><b>AIモデル</b>：AI案内に使うGeminiのモデルを選べます。迷ったら「自動モード」のままで大丈夫です。選んだモデルが使えない時は自動で最新モデルに切り替わります。</li>
           <li><b>読み上げの速さ</b>：ゆっくり聞きたいときは左へ動かします。</li>
           <li><b>GAS ウェブアプリURL</b>：通常は変更不要です。</li>
         </ul>

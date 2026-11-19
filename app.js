@@ -43,8 +43,43 @@
     state.settings = {
       gasUrl: s.gasUrl || '',
       ttsEngine: s.ttsEngine || CFG.DEFAULT_TTS_ENGINE || 'gemini',
-      speechRate: Number(s.speechRate || CFG.DEFAULT_SPEECH_RATE || 1)
+      speechRate: Number(s.speechRate || CFG.DEFAULT_SPEECH_RATE || 1),
+      geminiModel: (s.geminiModel !== undefined && MODEL_OPTIONS.some(o => o.value === s.geminiModel)) ? s.geminiModel : (CFG.GEMINI_MODEL || '')
     };
+  }
+
+  /* ============ AIモデル選択 ============ */
+  const MODEL_OPTIONS = (Array.isArray(CFG.GEMINI_MODEL_OPTIONS) && CFG.GEMINI_MODEL_OPTIONS.length)
+    ? CFG.GEMINI_MODEL_OPTIONS
+    : [{ value: '', label: '自動モード（汎用の最新）' }];
+  let serverDefaultModel = '';
+  function modelLabel(v) {
+    const o = MODEL_OPTIONS.find(x => x.value === v);
+    return o ? o.label : (v || '自動モード（汎用の最新）');
+  }
+  function renderModelInfo() {
+    const el = $('#settingsModel');
+    if (!el) return;
+    const m = state.settings.geminiModel;
+    el.textContent = m ? modelLabel(m) : ('自動モード' + (serverDefaultModel ? '（' + serverDefaultModel + '）' : ''));
+  }
+  function setupModelPicker() {
+    const sel = $('#modelSelect');
+    if (!sel) return;
+    sel.innerHTML = '';
+    MODEL_OPTIONS.forEach(o => {
+      const op = document.createElement('option');
+      op.value = o.value; op.textContent = o.label;
+      sel.appendChild(op);
+    });
+  }
+  async function loadServerModel() {
+    if (!gasUrl()) return;
+    try {
+      const r = await api('ping');
+      serverDefaultModel = r.defaultModel || '';
+    } catch (e) { /* 旧デプロイ等は無視 */ }
+    renderModelInfo();
   }
   function saveSettings() {
     try { localStorage.setItem(KEY.settings, JSON.stringify(state.settings)); } catch (e) { /* 保存不可 */ }
@@ -112,6 +147,9 @@
     const ver = CFG.VERSION || 'v1.0.0';
     $('#versionLabel').textContent = ver;
     $('#settingsVersion').textContent = ver;
+    setupModelPicker();
+    renderModelInfo();
+    loadServerModel();
 
     initSplash();
     initMap();
@@ -536,12 +574,12 @@
     box.prepend(holder);
     $$('#askForm button, .chip').forEach(b => b.disabled = true);
     try {
-      const r = await api('aiGuide', { spotId: s.spotId, question });
+      const r = await api('aiGuide', { spotId: s.spotId, question, model: state.settings.geminiModel });
       if (state.currentSpot !== s) return;
       const idx = state.aiAnswers.push({ question, answer: r.answer }) - 1;
       holder.innerHTML = `<p class="ai-q">問：${esc(question)}</p>
         <p class="ai-a">${esc(r.answer)}</p>
-        <div class="ai-a-foot"><span>${esc(r.guideName)}の話（AIによる案内です。史実は資料でご確認ください）</span>
+        <div class="ai-a-foot"><span>${esc(r.guideName)}の話（AIによる案内です。史実は資料でご確認ください）${r.model ? `<br><small>モデル：${esc(r.model)}${r.fallback ? `（${esc(r.requestedModel)} が使えなかったため自動で切替）` : ''}</small>` : ''}</span>
         <button class="btn btn-ghost btn-sm" data-act="read-ai" data-idx="${idx}">読み上げる</button></div>`;
     } catch (e) {
       holder.innerHTML = `<p class="ai-q">問：${esc(question)}</p><p class="ai-a">${esc(e.message)}</p>`;
@@ -985,6 +1023,8 @@
     f.gasUrl.value = state.settings.gasUrl || '';
     f.querySelectorAll('[name=ttsEngine]').forEach(r => r.checked = r.value === state.settings.ttsEngine);
     f.speechRate.value = state.settings.speechRate;
+    f.geminiModel.value = state.settings.geminiModel;
+    renderModelInfo();
     $('#rateOut').textContent = '×' + Number(state.settings.speechRate).toFixed(2);
     $('.form-msg', f).textContent = '';
     openModal('settingsModal');
@@ -997,7 +1037,9 @@
     state.settings.gasUrl = f.gasUrl.value.trim();
     state.settings.ttsEngine = (f.querySelector('[name=ttsEngine]:checked') || {}).value || 'gemini';
     state.settings.speechRate = Number(f.speechRate.value);
+    state.settings.geminiModel = f.geminiModel.value;
     saveSettings();
+    renderModelInfo();
     state.ttsCache.clear();
     closeModal('settingsModal');
     toast('設定を保存しました');
@@ -1018,7 +1060,7 @@
       const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'ping' }) });
       const j = await res.json();
       if (!j.ok) throw new Error(j.message);
-      msg.textContent = `接続できました（サーバー ${j.version}）`;
+      msg.textContent = `接続できました（サーバー ${j.version}${j.defaultModel ? ' / 既定モデル ' + j.defaultModel : ''}）`;
       msg.classList.add('ok');
     } catch (e) {
       msg.textContent = '接続できませんでした。URLと「アクセスできるユーザー：全員」の設定を確認してください';

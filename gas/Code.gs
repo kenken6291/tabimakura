@@ -1,13 +1,19 @@
 /**
  * 旅枕（たびまくら）— テーマで巡る物語の旅  GASバックエンド
- * Version: v1.1.2
+ * Version: v1.2.0
  *
  * スクリプトプロパティ（プロジェクトの設定 → スクリプト プロパティ）
  *   SPREADSHEET_ID   : DBのスプレッドシートID（コンテナバインドなら空でOK）
  *   DRIVE_FOLDER_ID  : 投稿写真・動画の保存先フォルダID（空なら自動作成）
  *   GEMINI_API_KEY   : Gemini APIキー（必須：AIガイド・音声）
- *   GEMINI_MODEL     : テキスト生成モデル（既定 gemini-2.5-flash）
+ *   GEMINI_MODEL     : テキスト生成モデル（任意。例 gemini-4-hydrogen。空なら汎用の最新モデル）
  *   GEMINI_TTS_MODEL : 音声生成モデル（既定 gemini-2.5-flash-preview-tts）
+ *
+ * AI案内のモデル決定順
+ *   1. 画面「設定 → AIモデル」で選ばれたモデル
+ *   2. スクリプトプロパティ GEMINI_MODEL
+ *   3. 汎用の最新モデル FALLBACK_GEMINI_MODELS
+ *   指定モデルが存在しない（廃止・未公開・名前違い）場合は、FALLBACK_GEMINI_MODELS を順に試す。
  *   TTS_VOICE        : 音声名（既定 Charon）
  *   PEPPER           : パスワードハッシュ用ペッパー（任意の長い文字列）
  *   AI_DAILY_LIMIT   : 1人1日あたりのAI/音声生成回数上限（既定 40）
@@ -17,12 +23,23 @@
  * ※ コードを変更したら「デプロイを管理 → 編集 → バージョン：新バージョン」で再デプロイすること。
  */
 
-const APP_VERSION = 'v1.1.2';
+const APP_VERSION = 'v1.2.0';
 const APP_NAME = '旅枕';
 const SESSION_DAYS = 30;
 const MAX_FAILED = 5;
 const LOCK_MINUTES = 15;
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
+
+// 汎用の最新モデル（上から順に試す）
+//   gemini-flash-latest : Googleが常に最新の汎用モデルへ差し替えるエイリアス
+//   gemini-4-hydrogen   : 2026年11月時点の汎用最新モデル
+//   gemini-3.8-flash    : 最終的な保険
+const FALLBACK_GEMINI_MODELS = ['gemini-flash-latest', 'gemini-4-hydrogen', 'gemini-3.8-flash'];
+// 音声生成モデルの候補（スクリプトプロパティ GEMINI_TTS_MODEL が最優先）
+const FALLBACK_TTS_MODELS = ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-preview-tts'];
+const GEMINI_MODEL_PATTERN = /^gemini-[a-z0-9][a-z0-9.\-]{0,60}$/;
+const GEMINI_RETRY_CODES = [429, 500, 503];
+const GEMINI_MAX_ATTEMPTS = 3;
 
 const HEADERS = {
   Users:    ['user_id', 'email', 'user_name', 'password_hash', 'salt', 'must_change', 'failed_count', 'locked_until', 'status', 'created_at', 'updated_at'],
@@ -52,7 +69,7 @@ function doPost(e) {
 }
 
 const ROUTES = {
-  ping:           () => ({ version: APP_VERSION, time: now_() }),
+  ping:           () => ({ version: APP_VERSION, time: now_(), defaultModel: resolveGeminiModel_(''), fallbackModels: FALLBACK_GEMINI_MODELS }),
   register:       register_,
   login:          login_,
   logout:         logout_,
@@ -447,22 +464,69 @@ function checkAiQuota_(user) {
   cache.put(key, String(n + 1), 86400);
 }
 
-function geminiFetch_(model, payload) {
+/** 使用するGeminiモデルを決める：画面指定 → スクリプトプロパティ → 汎用の最新。不正な名前は無視 */
+function resolveGeminiModel_(requested) {
+  const req = String(requested || '').trim().toLowerCase();
+  if (req && GEMINI_MODEL_PATTERN.test(req)) return req;
+  const pr = String(prop_('GEMINI_MODEL', '')).trim().toLowerCase();
+  if (pr && GEMINI_MODEL_PATTERN.test(pr)) return pr;
+  return FALLBACK_GEMINI_MODELS[0];
+}
+
+/** モデルが存在しない（廃止・名前違い）ことを示す応答か */
+function isModelNotFound_(code, text) {
+  if (code === 404) return true;
+  if (code === 400) return /not found|is not supported|NOT_FOUND|unknown model|invalid model/i.test(text);
+  return false;
+}
+
+/** 1モデルに対して呼び出す。混雑(429/500/503)時は待ち時間を伸ばして再試行 */
+function geminiCall_(model, payload) {
   const key = prop_('GEMINI_API_KEY', '');
   if (!key) fail_('CONFIG', 'GEMINI_API_KEY が未設定です（スクリプトプロパティを確認）');
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent';
-  const res = UrlFetchApp.fetch(url, {
-    method: 'post', contentType: 'application/json',
-    headers: { 'x-goog-api-key': key },
-    payload: JSON.stringify(payload), muteHttpExceptions: true
-  });
-  const code = res.getResponseCode();
-  const body = JSON.parse(res.getContentText() || '{}');
-  if (code !== 200) {
-    console.error('Gemini error', code, res.getContentText());
-    fail_('AI_ERROR', 'AIの呼び出しに失敗しました（' + code + '）' + (body.error && body.error.message ? ': ' + body.error.message : ''));
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent';
+  let code = 0, text = '';
+  for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
+    const res = UrlFetchApp.fetch(url, {
+      method: 'post', contentType: 'application/json',
+      headers: { 'x-goog-api-key': key },
+      payload: JSON.stringify(payload), muteHttpExceptions: true
+    });
+    code = res.getResponseCode();
+    text = res.getContentText();
+    if (code === 200) break;
+    if (GEMINI_RETRY_CODES.indexOf(code) === -1 || attempt === GEMINI_MAX_ATTEMPTS) break;
+    Utilities.sleep(2000 * attempt);
   }
-  return body;
+  return { code: code, text: text };
+}
+
+/**
+ * 候補モデルを順に試して呼び出す。存在しないモデルは飛ばして次へ。
+ * 戻り値：{ body, usedModel }
+ */
+function geminiFetchWithFallback_(models, payload) {
+  const list = [];
+  models.forEach(m => { if (m && list.indexOf(m) === -1) list.push(m); });
+  let r = null, used = list[0];
+  for (let i = 0; i < list.length; i++) {
+    used = list[i];
+    r = geminiCall_(used, payload);
+    if (!isModelNotFound_(r.code, r.text)) break;
+    console.warn('Geminiモデル「' + used + '」に該当がないため次の候補に切り替えます');
+  }
+  let body = {};
+  try { body = JSON.parse(r.text || '{}'); } catch (e) { body = {}; }
+  if (r.code !== 200) {
+    console.error('Gemini error', r.code, used, r.text);
+    fail_('AI_ERROR', 'AIの呼び出しに失敗しました（' + r.code + ' / ' + used + '）' + (body.error && body.error.message ? ': ' + body.error.message : ''));
+  }
+  return { body: body, usedModel: used };
+}
+
+/** 互換用：指定モデル→汎用の最新の順で呼び出し、レスポンス本体を返す */
+function geminiFetch_(model, payload) {
+  return geminiFetchWithFallback_([model].concat(FALLBACK_GEMINI_MODELS), payload).body;
 }
 
 function aiGuide_(p) {
@@ -486,16 +550,17 @@ function aiGuide_(p) {
     '概要: ' + spot.description + '\n\n' +
     '旅人からの質問: ' + question;
 
-  const model = prop_('GEMINI_MODEL', 'gemini-2.5-flash');
-  const body = geminiFetch_(model, {
+  const model = resolveGeminiModel_(p.model);
+  const result = geminiFetchWithFallback_([model].concat(FALLBACK_GEMINI_MODELS), {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: 'user', parts: [{ text: context }] }],
     generationConfig: { temperature: 0.8, maxOutputTokens: 2048 }
   });
+  const body = result.body;
   const parts = (body.candidates && body.candidates[0] && body.candidates[0].content && body.candidates[0].content.parts) || [];
   const text = parts.map(x => x.text || '').join('').trim();
   if (!text) fail_('AI_ERROR', 'AIから回答が得られませんでした。質問を変えてお試しください');
-  return { answer: text, guideName: guideName };
+  return { answer: text, guideName: guideName, model: result.usedModel, requestedModel: model, fallback: result.usedModel !== model };
 }
 
 function ttsFolder_() {
@@ -518,7 +583,7 @@ function tts_(p) {
     ? text.replace(/[\s　]+/g, '、').replace(/、+/g, '、').replace(/^、|、$/g, '') + '。'
     : text;
   const voice = str_(p.voice, 40) || prop_('TTS_VOICE', 'Charon');
-  const model = prop_('GEMINI_TTS_MODEL', 'gemini-2.5-flash-preview-tts');
+  const model = prop_('GEMINI_TTS_MODEL', FALLBACK_TTS_MODELS[0]);
 
   // 同じ文章・声はDriveにキャッシュして再利用（API節約）
   const keyBytes = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, 'v2|' + model + '|' + voice + '|' + style + '|' + speech, Utilities.Charset.UTF_8);
@@ -531,13 +596,13 @@ function tts_(p) {
   }
 
   checkAiQuota_(user);
-  const body = geminiFetch_(model, {
+  const body = geminiFetchWithFallback_([model].concat(FALLBACK_TTS_MODELS), {
     contents: [{ parts: [{ text: speech }] }],
     generationConfig: {
       responseModalities: ['AUDIO'],
       speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } }
     }
-  });
+  }).body;
   const part = body.candidates && body.candidates[0] && body.candidates[0].content &&
     body.candidates[0].content.parts && body.candidates[0].content.parts.find(x => x.inlineData);
   if (!part) fail_('AI_ERROR', '音声を生成できませんでした');
@@ -760,10 +825,11 @@ function setup() {
 
 /** Gemini接続テスト（エディタから実行） */
 function testGemini() {
-  const body = geminiFetch_(prop_('GEMINI_MODEL', 'gemini-2.5-flash'), {
+  const r = geminiFetchWithFallback_([resolveGeminiModel_('')].concat(FALLBACK_GEMINI_MODELS), {
     contents: [{ role: 'user', parts: [{ text: '「閑さや」の句を一行で紹介して' }] }]
   });
-  console.log(JSON.stringify(body).slice(0, 500));
+  console.log('使用モデル: ' + r.usedModel);
+  console.log(JSON.stringify(r.body).slice(0, 500));
 }
 
 /** メール送信の権限承認用（エディタから1回実行） */

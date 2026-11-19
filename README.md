@@ -1,4 +1,4 @@
-# 旅枕（たびまくら）— テーマで巡る、物語の旅  v1.1.0
+# 旅枕（たびまくら）— テーマで巡る、物語の旅  v1.2.0
 
 「奥の細道」をはじめ、テーマごとの旅路を地図・朗読・AI案内・空撮映像でたどり、訪問記録（御朱印帳）とコメントで旅人どうしが交流する Web アプリです。
 
@@ -91,7 +91,7 @@ tabimakura/
    |---|---|
    | `GEMINI_API_KEY` | Gemini APIキー（必須） |
    | `APP_URL` | `https://kenken6291.github.io/tabimakura/` |
-   | `GEMINI_MODEL` | 任意（既定 `gemini-2.5-flash`） |
+   | `GEMINI_MODEL` | 任意（空なら汎用の最新 `gemini-flash-latest`。画面「設定 → AIモデル」の選択が優先） |
    | `GEMINI_TTS_MODEL` | 任意（既定 `gemini-2.5-flash-preview-tts`） |
    | `TTS_VOICE` | 任意（既定 `Charon`。`Kore` `Puck` なども可） |
    | `AI_DAILY_LIMIT` | 任意（既定 40回／人・日） |

@@ -218,6 +218,7 @@ button { cursor: pointer; }
   background: #fffdf8; color: var(--sumi); font-size: 1rem;
 }
 .field textarea { resize: vertical; min-height: 4.5em; }
+.field select { display: block; width: 100%; margin-top: .25rem; padding: .6em .7em; border: 1px solid var(--kami-line); border-radius: 4px; background: #fffdf8; color: var(--sumi); font-size: 1rem; }
 .field small { color: var(--sumi-2); }
 .field input[type=range] { width: 100%; }
 .pw-wrap { position: relative; display: block; }
